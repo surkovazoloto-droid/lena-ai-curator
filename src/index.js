@@ -76,13 +76,101 @@ header{padding:22px 20px 16px;background:#2d211d;color:#fff;position:sticky;top:
 form{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(760px,100%);padding:12px 14px calc(12px + env(safe-area-inset-bottom));background:#fffaf5;border-top:1px solid #eadfd7;display:flex;gap:8px}textarea{flex:1;resize:none;border:1px solid #d9cbc3;border-radius:16px;padding:12px 13px;font:inherit;min-height:48px;max-height:130px;background:#fff}button{border:0;border-radius:16px;background:#2d211d;color:#fff;padding:0 18px;font-weight:700;font-size:15px}.small{font-size:12px;color:#87766c;text-align:center;margin:0 0 8px}
 </style></head><body><div class="wrap"><header><h1>ЛЕНА AI — ТВОЙ КУРАТОР 😈</h1><p>Разберём тебя → найдём направление → превратим навыки в понятный путь</p></header><main id="chat"></main><div class="small">Твои сообщения отправляются в Cloudflare Workers AI. Ключи API в браузер не выдаются.</div><form id="form"><textarea id="input" placeholder="Напиши ответ…" autocomplete="off"></textarea><button>➤</button></form></div>
 <script>
-const chat=document.getElementById('chat'), input=document.getElementById('input'), form=document.getElementById('form');
-let messages=JSON.parse(localStorage.getItem('lena_messages')||'null')||[];
-function add(role,text,save=true){const d=document.createElement('div');d.className='msg '+(role==='user'?'user':'ai');d.textContent=text;chat.appendChild(d);chat.scrollTop=chat.scrollHeight;if(save){messages.push({role,content:text});localStorage.setItem('lena_messages',JSON.stringify(messages));}}
-if(messages.length){messages.forEach(m=>add(m.role,m.content,false));}else{add('assistant','Привет 😈 Я Лена AI — твой куратор. Я не буду сразу рассказывать тебе, какой блог вести и что продавать. Сначала разберём тебя: твой опыт, сильные стороны и то, что у тебя уже есть. А потом найдём, как это можно превратить в понятное направление и деньги.\n\nНачнём с самого простого: чем ты занималась раньше и что ты умеешь делать?');}
-form.addEventListener('submit',async e=>{e.preventDefault();const text=input.value.trim();if(!text)return;input.value='';add('user',text);const t=document.createElement('div');t.className='msg ai typing';t.textContent='Лена думает…';chat.appendChild(t);chat.scrollTop=chat.scrollHeight;
-try{const r=await fetch('/api/chat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({messages})});const data=await r.json();t.remove();if(!r.ok)throw new Error(data.error||'Ошибка');add('assistant',data.text);}catch(err){t.remove();add('assistant','Ой, тут технический затык 😅 Попробуй ещё раз. Если повторится — пришли мне скриншот этой ошибки.');console.error(err)}});
-input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();form.requestSubmit()}});
+const chat = document.getElementById('chat');
+const input = document.getElementById('input');
+const form = document.getElementById('form');
+
+let messages = [];
+
+function add(role, text, save = true) {
+  const d = document.createElement('div');
+  d.className = 'msg ' + (role === 'user' ? 'user' : 'ai');
+  d.textContent = text;
+  chat.appendChild(d);
+  chat.scrollTop = chat.scrollHeight;
+
+  if (save) {
+    messages.push({ role, content: text });
+    localStorage.setItem('lena_messages', JSON.stringify(messages));
+  }
+}
+
+try {
+  const saved = JSON.parse(localStorage.getItem('lena_messages') || '[]');
+
+  if (Array.isArray(saved) && saved.length) {
+    messages = saved;
+    saved.forEach(m => add(m.role, m.content, false));
+  } else {
+    add(
+      'assistant',
+      'Привет 😈 Я Лена AI — твой куратор. Я не буду сразу рассказывать тебе, какой блог вести и что продавать. Сначала разберём тебя.\\n\\nНачнём с самого простого: чем ты занималась раньше и что ты умеешь делать?'
+    );
+  }
+} catch (e) {
+  localStorage.removeItem('lena_messages');
+
+  add(
+    'assistant',
+    'Привет 😈 Я Лена AI — твой куратор. Сначала разберём тебя, а уже потом будем искать направление.\\n\\nНачнём с самого простого: чем ты занималась раньше и что ты умеешь делать?'
+  );
+}
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const text = input.value.trim();
+
+  if (!text) return;
+
+  add('user', text);
+  input.value = '';
+  input.disabled = true;
+
+  const loading = document.createElement('div');
+  loading.className = 'msg ai';
+  loading.textContent = 'Думаю над твоим ответом… 😈';
+  chat.appendChild(loading);
+  chat.scrollTop = chat.scrollHeight;
+
+  try {
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        messages: messages
+      })
+    });
+
+    const data = await response.json();
+
+    loading.remove();
+
+    if (!response.ok || data.error) {
+      add('assistant', 'Не смогла получить ответ 😕 ' + (data.error || 'Попробуй ещё раз.'));
+      return;
+    }
+
+    add('assistant', data.text || 'Я получила твой ответ, но почему-то не смогла сформулировать ответ 😅');
+
+  } catch (error) {
+    loading.remove();
+    add('assistant', 'Что-то пошло не так при соединении. Попробуй отправить сообщение ещё раз.');
+  } finally {
+    input.disabled = false;
+    input.focus();
+  }
+});
+
+input.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    form.requestSubmit();
+  }
+});
+</script>
 </script></body></html>`;
 
 function json(data,status=200){return new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json;charset=UTF-8','cache-control':'no-store'}})}

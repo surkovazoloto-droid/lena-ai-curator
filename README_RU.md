@@ -1,15 +1,19 @@
-# ЛЕНА AI — ТВОЙ КУРАТОР 😈
+# ЛЕНА AI — Cloudflare Workers AI
 
-Готовый MVP-сервис для учениц. Он использует OpenAI Responses API, имеет отдельные коды доступа учениц, сохраняет историю диалога в SQLite и содержит инструкции ЛЕНА AI.
+Это версия без Render и без OpenAI API-ключа. AI работает через Cloudflare Workers AI.
 
-## Что нужно для запуска
-1. Создать API-ключ OpenAI.
-2. Развернуть проект на любом хостинге Python (например, Render).
-3. В переменные окружения добавить `OPENAI_API_KEY` и `ADMIN_KEY`.
-4. После запуска открыть `/admin?key=ВАШ_ADMIN_KEY`, создать коды учениц.
-5. Отправлять ученице адрес сайта + её код.
+## Что настроить в Cloudflare
+1. Workers & Pages → Create application → Import a repository.
+2. Выбрать GitHub → `lena-ai-curator`.
+3. Cloudflare увидит `wrangler.toml` и `src/index.js`.
+4. После подключения включить AI binding `AI` (конфигурация уже есть в wrangler.toml).
+5. При необходимости добавить Secret `ACCESS_CODE` — общий код доступа для учениц.
+6. Deploy.
+
+## Модель
+Используется `@cf/openai/gpt-oss-120b` через Workers AI. Дополнительный ключ OpenAI не нужен.
 
 ## Важно
-API-ключ нельзя вставлять в HTML/JavaScript. Он хранится только на сервере.
+Не вставляй OpenAI API key в код, GitHub или браузер.
 
-Для новой интеграции используется Responses API. Старый Assistants API больше не используется.
+Для первого теста можно вообще не задавать ACCESS_CODE. Тогда сайт будет открыт по ссылке. После проверки добавь ACCESS_CODE в Secrets и раздай код ученицам.

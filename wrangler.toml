@@ -1,0 +1,6 @@
+name = "lena-ai-curator"
+main = "src/index.js"
+compatibility_date = "2026-11-19"
+
+[ai]
+binding = "AI"
